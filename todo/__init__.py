@@ -66,7 +66,7 @@ class TodoPlugin(GObject.Object, Gedit.WindowActivatable):
 
     handlers = {}
 
-    mt = re.compile(r'(?P<protocol>^Gedit:\/\/)(?P<file>.*?)\?line=(?P<line>.*?)$')
+    mt = re.compile(r'(?P<protocol>^gedit:\/\/\/)(?P<file>.*?)\?line=(?P<line>.*?)$')
 
     def __init__(self):
         GObject.Object.__init__(self)
@@ -100,15 +100,9 @@ class TodoPlugin(GObject.Object, Gedit.WindowActivatable):
     def get_root_directory(self):
         # get filebrowser plugin root
         fb_root = self.get_filebrowser_root()
-        # get eddt plugin root
-#        eddt_root = self.get_eddt_root()
-
         if fb_root and fb_root != "" and fb_root is not None:
             title = "TODO List (Filebrowser integration)"
             root = fb_root
-#        elif eddt_root and eddt_root != "" and eddt_root is not None:
-#            title = "TODO List (EDDT integration)"
-#            root = eddt_root
         else:
             title = "TODO List (current directory)"
             root = os.path.dirname(__file__)
@@ -116,23 +110,11 @@ class TodoPlugin(GObject.Object, Gedit.WindowActivatable):
         rt_path = urllib.unquote(root.replace("file://", ""))
         return (rt_path, title)
 
-    # taken from snapopen plugin
     def get_filebrowser_root(self):
         """ Get path to current filebrowser root. """
         settings = Gio.Settings.new('org.gnome.gedit.plugins.filebrowser')
-        virtual_root = settings.get_string('virtual-root').split('file://')[1]
+        virtual_root = settings.get_string('virtual-root')#.split('file://')[1]
         return virtual_root
-
-    # taken from snapopen plugin
-#    def get_eddt_root(self):
-#        base = u'/apps/Gedit-2/plugins/eddt'
-#        client = gconf.client_get_default()
-#        client.add_dir(base, gconf.CLIENT_PRELOAD_NONE)
-#        path = os.path.join(base, u'repository')
-#        val = client.get(path)
-
-#        if val is not None:
-#            return val.get_string()
 
     def show_todo_marks(self, *args):
         # getting variables
@@ -169,17 +151,16 @@ class TodoPlugin(GObject.Object, Gedit.WindowActivatable):
     def on_navigation_request(self, page, frame, request):
         file_uri = None
         uri = request.get_uri()
-        #if uri == 'about:':
-        #    return 0
-        gp =  self.mt.search(uri)
+        gp = self.mt.search(uri)
         if gp:
-            file_uri = 'file:///%s' % gp.group('file')
+            file_uri = 'file://%s' % gp.group('file')
             line_number = gp.group('line')
             if file_uri:
-                # Test if document is not already open
+                # Test if document is already open
                 for doc in self.window.get_documents():
-                    if doc.get_uri() == file_uri:
-                        tab = Gedit.tab_get_from_document(doc)
+                    doc_uri = 'file://%s' % doc.get_uri_for_display()
+                    if doc_uri == file_uri:
+                        tab = Gedit.Tab.get_from_document(doc)
                         view = tab.get_view()
                         self.window.set_active_tab(tab)
                         doc.goto_line(int(line_number))
@@ -187,9 +168,11 @@ class TodoPlugin(GObject.Object, Gedit.WindowActivatable):
                         self.todo_window.hide()
                         return 1
                 # Document isn't open, create a new tab from uri
-                self.window.create_tab_from_uri(file_uri,
-                                                Gedit.encoding_get_current(),
-                                                int(line_number), False, True)
+                file_uri = Gio.file_new_for_uri(file_uri)
+                self.window.create_tab_from_location(file_uri,
+                                                     Gedit.encoding_get_current(),
+                                                     int(line_number),
+                                                     0, False, True)
                 self.todo_window.hide()
                 return 1
         else:
