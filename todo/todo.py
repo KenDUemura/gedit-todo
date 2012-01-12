@@ -179,7 +179,9 @@ def parse_directory(root):
     table_row_pattern = '        <tr class="%s"><td><a href="%s"  title="%s">%s</a> <span>(%s)</span></td><td>%s</td>\n'
 
     def format_row(value_):
-        return table_row_pattern % (css, file_link(value_[0], value_[2]), value_[0], value_[1], value_[2], value_[4])
+        return table_row_pattern % (css, file_link(value_[0], value_[2]),
+                                    value_[0], value_[1], value_[2],
+                                    escape(value_[4]))
 
     for ix, value in enumerate(sorted(values,key=operator.itemgetter(3))):
         css = 'odd'
